@@ -570,9 +570,9 @@ handle_cmd(_, Conn, State, type, Arg) ->
     "I" ->
       respond(Conn, ?FTP_TYPEOK, "Switching to Binary mode."),
       {ok, State#state{conn = Conn#connection_state{data_mode = binary}}};
-    "A" ->
-      respond(Conn, ?FTP_TYPEOK, "Switching to ASCII mode."),
-      {ok, State#state{conn = Conn#connection_state{data_mode = list}}};
+    %"A" ->
+    %  respond(Conn, ?FTP_TYPEOK, "Switching to ASCII mode."),
+    %  {ok, State#state{conn = Conn#connection_state{data_mode = list}}};
     _ ->
       respond(Conn, ?FTP_BADOPTS, "Only TYPE I or TYPE A may be used."),
       {ok, State}
@@ -674,6 +674,27 @@ handle_cmd(Module, Conn, State, retr, Arg) ->
     _ ->
       respond(Conn, ?FTP_FILEFAIL),
       {ok, State}
+  end;
+
+handle_cmd(Module, Conn, State, stor, Arg) ->
+  DataSocket = data_connection(Conn, State),
+  Fun = fun(_) ->
+    case bf_recv(DataSocket) of
+      {ok, Data} ->
+        {ok, Data, size(Data)};
+      {error, closed} ->
+        done
+    end
+  end,
+  case Module:put_file(State, Arg, write, Fun) of
+    {ok, NewState} ->
+      bf_close(DataSocket),
+      respond(Conn, ?FTP_TRANSFEROK),
+      {ok, clean_connection(NewState)};
+    {error, _} ->
+      bf_close(DataSocket),
+      respond(Conn, ?FTP_BADSENDFILE, "Unable to stor file"),
+      {ok, clean_connection(State)}
   end;
 
 handle_cmd(_, Conn, State, _, _) ->
