@@ -697,6 +697,16 @@ handle_cmd(Module, Conn, State, stor, Arg) ->
       {ok, clean_connection(State)}
   end;
 
+handle_cmd(Module, Conn, State, dele, Arg) ->
+  case Module:remove_file(State, Arg) of
+    {ok, NewState} ->
+      respond(Conn, ?FTP_DELEOK, "Delete operation successful."),
+      {ok, NewState};
+    {error, _} ->
+      respond(Conn, ?FTP_FILEFAIL),
+      {ok, State}
+  end;
+
 handle_cmd(_, Conn, State, _, _) ->
   respond(Conn, ?FTP_BADCMD),
   {ok, State}.
