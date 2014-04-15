@@ -31,7 +31,8 @@
   pasv_connection = undefined,
   port_connection = undefined,
   data_mode = binary,
-  encode = utf8
+  encode = utf8,
+  rnfr = undefined
 }).
 
 -record(state,

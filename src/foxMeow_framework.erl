@@ -570,9 +570,9 @@ handle_cmd(_, Conn, State, type, Arg) ->
     "I" ->
       respond(Conn, ?FTP_TYPEOK, "Switching to Binary mode."),
       {ok, State#state{conn = Conn#connection_state{data_mode = binary}}};
-    %"A" ->
-    %  respond(Conn, ?FTP_TYPEOK, "Switching to ASCII mode."),
-    %  {ok, State#state{conn = Conn#connection_state{data_mode = list}}};
+  %"A" ->
+  %  respond(Conn, ?FTP_TYPEOK, "Switching to ASCII mode."),
+  %  {ok, State#state{conn = Conn#connection_state{data_mode = list}}};
     _ ->
       respond(Conn, ?FTP_BADOPTS, "Only TYPE I or TYPE A may be used."),
       {ok, State}
@@ -705,6 +705,26 @@ handle_cmd(Module, Conn, State, dele, Arg) ->
     {error, _} ->
       respond(Conn, ?FTP_FILEFAIL),
       {ok, State}
+  end;
+
+handle_cmd(_, Conn, State, rnfr, Arg) ->
+  respond(Conn, ?FTP_RNFROK, "Ready for RNTO."),
+  {ok, State#state{conn = Conn#connection_state{rnfr = Arg}}};
+
+handle_cmd(Module, Conn, State, rnto, Arg) ->
+  case Conn#connection_state.rnfr of
+    undefined ->
+      respond(Conn, ?FTP_NEEDRNFR, "RNFR required first."),
+      {ok, State};
+    Rnfr ->
+      case Module:rename_file(State, Rnfr, Arg) of
+        {error, _} ->
+          respond(Conn, ?FTP_FILEFAIL),
+          {ok, State};
+        {ok, NewState} ->
+          respond(Conn, ?FTP_RENAMEOK, "Rename successful."),
+          {ok, NewState#state{conn = NewState#state.conn#connection_state{rnfr = undefined}}}
+      end
   end;
 
 handle_cmd(_, Conn, State, _, _) ->
