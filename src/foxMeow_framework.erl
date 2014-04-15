@@ -757,6 +757,21 @@ handle_cmd(Module, Conn, State, rest, Arg) ->
       {ok, State}
   end;
 
+handle_cmd(Module, Conn, State, xcwd, Arg) ->
+  handle_cmd(Module, Conn, State, cwd, Arg);
+
+handle_cmd(Module, Conn, State, xcup, Arg) ->
+  handle_cmd(Module, Conn, State, cdup, Arg);
+
+handle_cmd(Module, Conn, State, xmkd, Arg) ->
+  handle_cmd(Module, Conn, State, mkd, Arg);
+
+handle_cmd(Module, Conn, State, xpwd, Arg) ->
+  handle_cmd(Module, Conn, State, pwd, Arg);
+
+handle_cmd(Module, Conn, State, xrmd, Arg) ->
+  handle_cmd(Module, Conn, State, rmd, Arg);
+
 handle_cmd(_, Conn, State, _, _) ->
   respond(Conn, ?FTP_BADCMD),
   {ok, State}.
