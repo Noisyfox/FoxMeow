@@ -26,10 +26,11 @@ load_tunables() ->
   SSL_key = get_app_env(ssl_key, Default_tunables#tunables.ssl_key),
   SSL_ca_cert = get_app_env(ssl_key, Default_tunables#tunables.ssl_ca_cert),
   PASV_enable = get_app_env(pasv_enable, Default_tunables#tunables.pasv_enable),
+  Timeout = get_app_env(timeout, Default_tunables#tunables.time_out),
   #tunables{
     ip_address = IP_address,
     listen_port = Listen_port, ftp_banner = Ftp_banner, max_login_fails = Max_login_fails, pasv_enable = PASV_enable,
-    ssl_allowed = SSL_allowed, ssl_cert = SSL_cert, ssl_key = SSL_key, ssl_ca_cert = SSL_ca_cert
+    ssl_allowed = SSL_allowed, ssl_cert = SSL_cert, ssl_key = SSL_key, ssl_ca_cert = SSL_ca_cert, time_out = Timeout
   }.
 
 get_app_env(Opt, Default) ->

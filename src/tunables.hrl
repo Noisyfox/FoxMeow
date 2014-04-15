@@ -17,5 +17,6 @@
   ssl_cert = undefined,
   ssl_key = undefined,
   ssl_ca_cert = undefined,
-  pasv_enable = true
+  pasv_enable = true,
+  time_out = 60 * 1000
 }).

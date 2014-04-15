@@ -96,11 +96,11 @@ handle_cast({cmd, {Command, Args} = Cmd}, #state{conn = Conn} = State) ->
   io:format("~p Get cmd: ~p~n", [self(), Cmd]),
   case handle_cmd(State, Command, Args) of
     {ok, NewState} ->
-      grab_next_command(Conn),
+      grab_next_command(Conn, State#state.tunables#tunables.time_out),
       {noreply, NewState};
     {permission_deny} ->
       respond(Conn, ?FTP_NOPERM, "Permission denied."),
-      grab_next_command(Conn),
+      grab_next_command(Conn, State#state.tunables#tunables.time_out),
       {noreply, State};
     _ ->
       {stop, normal, State}
@@ -110,7 +110,7 @@ handle_cast({tcp_closed, _Socket}, State) ->
   {stop, normal, State};
 
 handle_cast({fake}, #state{conn = Conn} = State) ->
-  grab_next_command(Conn),
+  grab_next_command(Conn, State#state.tunables#tunables.time_out),
   {noreply, State};
 
 handle_cast(_Request, State) ->
@@ -130,7 +130,7 @@ handle_cast(_Request, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_info(timeout, #state{lsock = LSock} = State) ->
+handle_info(timeout, #state{lsock = LSock, conn = undefined} = State) ->
   {ok, ClientSocket} = gen_tcp:accept(LSock),
   foxMeow_sup:start_child(),
   LocalAddr =
@@ -252,8 +252,8 @@ parse_input(Input, Encode) ->
     Tokens),
   {list_to_atom(string:to_lower(Command)), decode_string(list_to_binary(string:join(Args, " ")), Encode)}.
 
-grab_next_command(#connection_state{sock_mode = SocketMode, control_sock = Socket, encode = Encode}) ->
-  case SocketMode:recv(Socket, 0) of
+grab_next_command(#connection_state{sock_mode = SocketMode, control_sock = Socket, encode = Encode}, Timeout) ->
+  case SocketMode:recv(Socket, 0, Timeout) of
     {ok, Input} ->
       Command = parse_input(Input, Encode),
       gen_server:cast(self(), {cmd, Command});
@@ -446,6 +446,10 @@ handle_cmd(Module, Conn, State, quit, _) ->
   respond(Conn, ?FTP_GOODBYE, "Goodbye."),
   Module:disconnect(State),
   quit;
+
+handle_cmd(_, Conn, State, noop, _) ->
+  respond(Conn, ?FTP_NOOPOK, "NOOP ok."),
+  {ok, State};
 
 handle_cmd(_, Conn, State, user, Arg) ->
   if

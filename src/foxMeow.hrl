@@ -39,5 +39,5 @@
   module,
   lsock,
   tunables,
-  conn
+  conn = undefined
 }).
