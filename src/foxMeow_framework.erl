@@ -138,7 +138,7 @@ handle_info(timeout, #state{lsock = LSock, conn = undefined} = State) ->
       undefined ->
         {ok, {Addr, _}} = inet:sockname(LSock),
         case Addr of
-          {0,0,0,0} -> {127,0,0,1};
+          {0, 0, 0, 0} -> {127, 0, 0, 1};
           _ -> Addr
         end;
       _ ->
@@ -298,6 +298,9 @@ format_port(PortNumber) ->
   [A, B] = binary_to_list(<<PortNumber:16>>),
   {A, B}.
 
+clean_connection(#state{conn = Conn} = State) ->
+  State#state{conn = Conn#connection_state{pasv_connection = undefined, port_connection = undefined}}.
+
 data_connection(Conn, State) ->
   respond(Conn, 150),
   case establish_data_connection(Conn) of
@@ -315,18 +318,26 @@ data_connection(Conn, State) ->
               throw({error, E})
           end
       end;
-    {error, Error} ->
-      respond(Conn, 425),
+    {error, {msg, Msg}} = Error ->
+      respond(Conn, ?FTP_BADSENDCONN, Msg),
+      throw(Error);
+    {error, _} = Error ->
+      respond(Conn, ?FTP_BADSENDCONN),
       throw(Error)
   end.
 
 % passive -- accepts an inbound connection
 establish_data_connection(#connection_state{pasv_connection = {pasv, Listen, _}}) ->
-  gen_tcp:accept(Listen);
+  Socket = gen_tcp:accept(Listen),
+  inet:close(Listen),
+  Socket;
 
 % active -- establishes an outbound connection
 establish_data_connection(#connection_state{port_connection = {port, Addr, Port}, data_mode = Mode}) ->
-  gen_tcp:connect(Addr, Port, [{active, false}, Mode]).
+  gen_tcp:connect(Addr, Port, [{active, false}, Mode]);
+
+establish_data_connection(#connection_state{pasv_connection = undefined, port_connection = undefined}) ->
+  {error, {msg, "Use PORT or PASV first."}}.
 
 % Taken from jungerl/ftpd
 
@@ -405,6 +416,12 @@ list_files_to_socket(DataSocket, Encode, Files) ->
   lists:map(fun({Info, Name}) ->
     bf_send(DataSocket, encode_string(lists:flatten(
       file_info_to_string(Info) ++ " " ++ Name ++ "\r\n"), Encode)) end,
+    Files),
+  ok.
+
+list_file_names_to_socket(DataSocket, Encode, Files) ->
+  lists:map(fun({_, Name}) ->
+    bf_send(DataSocket, encode_string(lists:flatten(Name ++ "\r\n"), Encode)) end,
     Files),
   ok.
 
@@ -606,7 +623,20 @@ handle_cmd(Module, Conn, State, list, Arg) ->
       list_files_to_socket(DataSocket, Conn#connection_state.encode, Files),
       bf_close(DataSocket),
       respond(Conn, ?FTP_TRANSFEROK),
-      {ok, State}
+      {ok, clean_connection(State)}
+  end;
+
+handle_cmd(Module, Conn, State, nlst, Arg) ->
+  case Module:list_files(State, Arg) of
+    {error, _} ->
+      respond(Conn, ?FTP_FILEFAIL),
+      {ok, State};
+    Files ->
+      DataSocket = data_connection(Conn, State),
+      list_file_names_to_socket(DataSocket, Conn#connection_state.encode, Files),
+      bf_close(DataSocket),
+      respond(Conn, ?FTP_TRANSFEROK),
+      {ok, clean_connection(State)}
   end;
 
 handle_cmd(Module, Conn, State, mdtm, Arg) ->
@@ -635,7 +665,7 @@ handle_cmd(Module, Conn, State, retr, Arg) ->
         {ok, NewState} = write_fun(DataSocket, Fun),
         bf_close(DataSocket),
         respond(Conn, ?FTP_TRANSFEROK),
-        {ok, NewState};
+        {ok, clean_connection(NewState)};
       error ->
         respond(Conn, ?FTP_FILEFAIL),
         {ok, State}
