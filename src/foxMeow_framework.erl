@@ -449,7 +449,7 @@ write_fun(Socket, Fun) ->
       bf_send(Socket, Bytes),
       write_fun(Socket, NextFun);
     {done, NewState} ->
-      {ok, NewState}
+      {ok, NewState#state{conn = NewState#state.conn#connection_state{offset = 0}}}
   end.
 
 %% FTP COMMANDS
@@ -741,6 +741,16 @@ handle_cmd(Module, Conn, State, rmd, Arg) ->
   case Module:remove_directory(State, Arg) of
     {ok, NewState} ->
       respond(Conn, ?FTP_RMDIROK, "Remove directory successful."),
+      {ok, NewState};
+    {error, _} ->
+      respond(Conn, ?FTP_FILEFAIL),
+      {ok, State}
+  end;
+
+handle_cmd(Module, Conn, State, rest, Arg) ->
+  case Module:rest(State, Arg) of
+    {ok, NewState} ->
+      respond(Conn, ?FTP_RESTOK, "Restart position accepted (" ++ Arg ++ ")."),
       {ok, NewState};
     {error, _} ->
       respond(Conn, ?FTP_FILEFAIL),
