@@ -111,7 +111,7 @@ rename_file(#state{conn = Conn} = State, FromPath, ToPath) ->
   end.
 
 remove_directory(#state{conn = Conn} = State, Directory) ->
-  Target = [Conn#connection_state.root_dir, Conn#connection_state.current_dir, Directory],
+  Target = [Conn#connection_state.root_dir, Conn#connection_state.current_dir, "/", Directory],
   FilePath = filename:join([Target]),
   ?INFO_F("~p --- FilePath:~p ~n", [?MODULE, FilePath]),
 
@@ -122,7 +122,6 @@ remove_directory(#state{conn = Conn} = State, Directory) ->
       ?DEBUG_F("~p --- remove_directory,error:~p ~n", [?MODULE, Reason]),
       {error, Reason}
   end.
-
 
 list_files(State, "-al") ->
   {error, State};

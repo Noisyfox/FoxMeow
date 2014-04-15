@@ -737,6 +737,16 @@ handle_cmd(Module, Conn, State, mkd, Arg) ->
       {ok, State}
   end;
 
+handle_cmd(Module, Conn, State, rmd, Arg) ->
+  case Module:remove_directory(State, Arg) of
+    {ok, NewState} ->
+      respond(Conn, ?FTP_RMDIROK, "Remove directory successful."),
+      {ok, NewState};
+    {error, _} ->
+      respond(Conn, ?FTP_FILEFAIL),
+      {ok, State}
+  end;
+
 handle_cmd(_, Conn, State, _, _) ->
   respond(Conn, ?FTP_BADCMD),
   {ok, State}.
