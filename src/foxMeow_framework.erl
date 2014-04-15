@@ -727,6 +727,16 @@ handle_cmd(Module, Conn, State, rnto, Arg) ->
       end
   end;
 
+handle_cmd(Module, Conn, State, mkd, Arg) ->
+  case Module:make_directory(State, Arg) of
+    {ok, NewState} ->
+      respond(Conn, ?FTP_MKDIROK, "\"" ++ Arg ++ "\" directory created."),
+      {ok, NewState};
+    {error, _} ->
+      respond(Conn, ?FTP_FILEFAIL, "Create directory operation failed."),
+      {ok, State}
+  end;
+
 handle_cmd(_, Conn, State, _, _) ->
   respond(Conn, ?FTP_BADCMD),
   {ok, State}.

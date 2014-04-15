@@ -55,7 +55,7 @@ make_directory(#state{conn = Conn} = State, Directory) ->
 
   case file:make_dir(Target) of
     ok ->
-      {ok, State#state{conn = #connection_state{current_dir = ClientDir}}};
+      {ok, State#state{conn = Conn#connection_state{current_dir = ClientDir}}};
     {error, _Reson} ->
       ?DEBUG_F("~p -- ~p Target error:~p ~n ", [?MODULE, Target, _Reson]),
       {error, eexist}
