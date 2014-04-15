@@ -426,6 +426,15 @@ decode_string(Bin, utf8) ->
   [Str] = io_lib:format("~ts", [Bin]),
   Str.
 
+write_fun(Socket, Fun) ->
+  case Fun(?FILE_PRE_READ_TOM(1)) of
+    {ok, Bytes, NextFun} ->
+      bf_send(Socket, Bytes),
+      write_fun(Socket, NextFun);
+    {done, NewState} ->
+      {ok, NewState}
+  end.
+
 %% FTP COMMANDS
 handle_cmd(#state{conn = Conn, module = Module} = State, Command, Arg) ->
   handle_cmd(Module, Conn, State, Command, Arg).
@@ -613,6 +622,25 @@ handle_cmd(Module, Conn, State, size, Arg) ->
       respond(Conn, ?FTP_FILEFAIL)
   end,
   {ok, State};
+
+handle_cmd(Module, Conn, State, retr, Arg) ->
+  try
+    case Module:get_file(State, Arg) of
+      {ok, Fun} ->
+        DataSocket = data_connection(Conn, State),
+        {ok, NewState} = write_fun(DataSocket, Fun),
+        bf_close(DataSocket),
+        respond(Conn, ?FTP_TRANSFEROK),
+        {ok, NewState};
+      error ->
+        respond(Conn, ?FTP_FILEFAIL),
+        {ok, State}
+    end
+  catch
+    _ ->
+      respond(Conn, ?FTP_FILEFAIL),
+      {ok, State}
+  end;
 
 handle_cmd(_, Conn, State, _, _) ->
   respond(Conn, ?FTP_BADCMD),

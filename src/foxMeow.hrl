@@ -13,6 +13,8 @@
 -include("ftp_code.hrl").
 -include("log.hrl").
 
+-define(FILE_PRE_READ_TOM(X), X * 1024 * 1024).
+
 -record(connection_state,
 {
   authenticated_state = unauthenticated,
